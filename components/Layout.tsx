@@ -12,12 +12,8 @@ export default function Layout({ children }: LayoutProps) {
 
   const initial = user?.name?.charAt(0).toUpperCase() || '?';
 
-  const handleLogout = async () => {
-    try {
-      await instance.logoutPopup();
-    } catch {
-      await instance.logoutRedirect();
-    }
+  const handleLogout = () => {
+    instance.logoutRedirect();
   };
 
   return (

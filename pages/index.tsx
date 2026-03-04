@@ -21,18 +21,11 @@ export default function Home() {
     }
   }, [isAuthenticated, inProgress, router]);
 
-  const handleLogin = async () => {
+  const handleLogin = () => {
     setError(null);
-    try {
-      await instance.loginPopup({
-        scopes: ['User.Read', 'profile', 'openid', 'email'],
-      });
-    } catch (err: any) {
-      if (err?.errorCode !== 'user_cancelled') {
-        setError(err?.message || 'Sign-in failed. Please try again.');
-        console.error('Login error:', err);
-      }
-    }
+    instance.loginRedirect({
+      scopes: ['User.Read', 'profile', 'openid', 'email'],
+    });
   };
 
   return (
