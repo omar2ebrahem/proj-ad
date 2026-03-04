@@ -8,20 +8,37 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { instance, accounts } = useMsal();
+  const user = accounts[0];
+
+  const initial = user?.name?.charAt(0).toUpperCase() || '?';
 
   const handleLogout = async () => {
-    await instance.logout();
+    try {
+      await instance.logoutPopup();
+    } catch {
+      await instance.logoutRedirect();
+    }
   };
 
   return (
     <div className={styles.layout}>
       <header className={styles.header}>
         <div className={styles.headerContent}>
-          <h1>Employee Admin Dashboard</h1>
+          <div className={styles.headerBrand}>
+            <div className={styles.headerLogo}>🏢</div>
+            <h1 className={styles.headerTitle}>
+              Azure<span>Admin</span>
+            </h1>
+          </div>
           <div className={styles.userInfo}>
-            <span>{accounts[0]?.name}</span>
+            {user && (
+              <>
+                <span className={styles.userName}>{user.name}</span>
+                <div className={styles.userAvatar}>{initial}</div>
+              </>
+            )}
             <button onClick={handleLogout} className={styles.logoutButton}>
-              Logout
+              Sign out
             </button>
           </div>
         </div>

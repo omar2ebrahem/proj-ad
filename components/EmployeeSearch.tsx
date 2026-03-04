@@ -25,9 +25,14 @@ export default function EmployeeSearch({ onEmployeeSelected }: EmployeeSearchPro
     try {
       const response = await fetch(`/api/graph/search-users?query=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
-      setResults(data.users || []);
-    } catch (err) {
-      setError('Failed to search employees');
+      if (!response.ok) {
+        setError((data as any).details || 'Failed to search employees');
+        setResults([]);
+      } else {
+        setResults(data.users || []);
+      }
+    } catch {
+      setError('Failed to connect to the search service.');
     } finally {
       setLoading(false);
     }
@@ -35,28 +40,53 @@ export default function EmployeeSearch({ onEmployeeSelected }: EmployeeSearchPro
 
   return (
     <div className={styles.searchContainer}>
-      <h2>Find Employee</h2>
-      <input
-        type="text"
-        placeholder="Search by name or email..."
-        value={query}
-        onChange={(e) => handleSearch(e.target.value)}
-        className={styles.searchInput}
-      />
+      <h2 className={styles.searchLabel}>Find Employee</h2>
+
+      <div className={styles.searchInputWrapper}>
+        <i className={styles.searchIcon}>🔍</i>
+        <input
+          type="text"
+          placeholder="Search by name or email..."
+          value={query}
+          onChange={(e) => handleSearch(e.target.value)}
+          className={styles.searchInput}
+          autoComplete="off"
+        />
+      </div>
+
+      {query.length > 0 && query.length < 2 && (
+        <p className={styles.searchHint}>Type at least 2 characters to search</p>
+      )}
+
       {loading && <div className={styles.loading}>Searching...</div>}
       {error && <div className={styles.error}>{error}</div>}
-      <div className={styles.searchResults}>
-        {results.map((employee) => (
-          <div
-            key={employee.id}
-            className={styles.resultItem}
-            onClick={() => onEmployeeSelected(employee)}
-          >
-            <div className={styles.resultName}>{employee.displayName}</div>
-            <div className={styles.resultEmail}>{employee.userPrincipalName}</div>
-          </div>
-        ))}
-      </div>
+
+      {results.length > 0 && (
+        <div className={styles.searchResults}>
+          {results.map((employee) => (
+            <div
+              key={employee.id}
+              className={styles.resultItem}
+              onClick={() => onEmployeeSelected(employee)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && onEmployeeSelected(employee)}
+            >
+              <div className={styles.resultAvatar}>
+                {employee.displayName?.charAt(0).toUpperCase() || '?'}
+              </div>
+              <div className={styles.resultInfo}>
+                <div className={styles.resultName}>{employee.displayName}</div>
+                <div className={styles.resultEmail}>{employee.userPrincipalName}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && !error && query.length >= 2 && results.length === 0 && (
+        <p className={styles.searchHint}>No employees found matching "{query}"</p>
+      )}
     </div>
   );
 }

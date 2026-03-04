@@ -15,7 +15,7 @@ export default function WorkInfoSection({ formData, onChange }: WorkInfoSectionP
           type="text"
           value={formData.jobTitle || ''}
           onChange={(e) => onChange('jobTitle', e.target.value)}
-          placeholder="Job title"
+          placeholder="e.g. Software Engineer"
         />
       </div>
 
@@ -25,17 +25,7 @@ export default function WorkInfoSection({ formData, onChange }: WorkInfoSectionP
           type="text"
           value={formData.department || ''}
           onChange={(e) => onChange('department', e.target.value)}
-          placeholder="Department"
-        />
-      </div>
-
-      <div className={styles.formGroup}>
-        <label>Manager UPN</label>
-        <input
-          type="email"
-          value={formData.manager?.userPrincipalName || ''}
-          onChange={(e) => onChange('manager', e.target.value)}
-          placeholder="manager@company.com"
+          placeholder="e.g. Engineering"
         />
       </div>
 
@@ -47,6 +37,23 @@ export default function WorkInfoSection({ formData, onChange }: WorkInfoSectionP
           onChange={(e) => onChange('companyName', e.target.value)}
           placeholder="Company name"
         />
+      </div>
+
+      <div className={styles.formGroup}>
+        <label>Manager UPN</label>
+        {/* We store manager UPN in a dedicated field 'managerUpn' so we
+            don't accidentally overwrite the manager object from Graph API */}
+        <input
+          type="email"
+          value={(formData as any).managerUpn ?? formData.manager?.userPrincipalName ?? ''}
+          onChange={(e) => onChange('managerUpn', e.target.value)}
+          placeholder="manager@company.com"
+        />
+        {formData.manager?.displayName && (
+          <span className={styles.helperText}>
+            Current: {formData.manager.displayName}
+          </span>
+        )}
       </div>
     </div>
   );

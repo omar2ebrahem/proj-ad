@@ -21,6 +21,7 @@ export default function Dashboard() {
       return;
     }
     checkAccess();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   const checkAccess = async () => {
@@ -42,22 +43,35 @@ export default function Dashboard() {
       const accessData = await accessCheckResponse.json();
       setHasAccess(accessData.hasAccess);
       if (!accessData.hasAccess) {
-        setAccessError('You do not have permission to access this dashboard');
+        setAccessError('You are not a member of the required security group to access this dashboard.');
       }
-    } catch (error) {
-      setAccessError('Failed to verify access permissions');
+    } catch {
+      setAccessError('Failed to verify your access permissions. Please try signing in again.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <Layout><div className={styles.loading}>Loading...</div></Layout>;
+  if (loading) {
+    return (
+      <Layout>
+        <div className={styles.loading}>
+          <div className={styles.loadingSpinner} />
+          <p className={styles.loadingText}>Verifying your access...</p>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!hasAccess) {
     return (
       <Layout>
         <div className={styles.errorContainer}>
-          <div className={styles.errorMessage}>✕ {accessError}</div>
+          <div className={styles.accessDenied}>
+            <div className={styles.accessDeniedIcon}>🚫</div>
+            <h2>Access Denied</h2>
+            <p>{accessError}</p>
+          </div>
         </div>
       </Layout>
     );
@@ -65,23 +79,33 @@ export default function Dashboard() {
 
   return (
     <>
-      <Head><title>Dashboard - Employee Admin</title></Head>
+      <Head>
+        <title>Dashboard — AzureAdmin</title>
+        <meta name="description" content="Manage employee profiles in Microsoft Entra ID." />
+      </Head>
       <Layout>
-        <div className={styles.dashboard}>
-          <h1>Employee Profile Management</h1>
-          <div className={styles.content}>
-            <div className={styles.sidebar}>
-              <EmployeeSearch onEmployeeSelected={setSelectedEmployee} />
-            </div>
-            <div className={styles.main}>
-              {selectedEmployee ? (
-                <EmployeeForm employee={selectedEmployee} />
-              ) : (
-                <div className={styles.placeholder}>
-                  <p>Select an employee to manage their profile</p>
-                </div>
-              )}
-            </div>
+        <div className={styles.dashboardHeader}>
+          <h1>Employee Directory</h1>
+          <p>Search for an employee and update their profile in Microsoft Entra ID</p>
+        </div>
+
+        <div className={styles.content}>
+          <div className={styles.sidebar}>
+            <EmployeeSearch onEmployeeSelected={setSelectedEmployee} />
+          </div>
+          <div className={styles.main}>
+            {selectedEmployee ? (
+              <EmployeeForm
+                key={selectedEmployee.id}
+                employee={selectedEmployee}
+              />
+            ) : (
+              <div className={styles.placeholder}>
+                <div className={styles.placeholderIcon}>👈</div>
+                <h3>No Employee Selected</h3>
+                <p>Use the search panel to find an employee and manage their profile.</p>
+              </div>
+            )}
           </div>
         </div>
       </Layout>
