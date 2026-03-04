@@ -4,40 +4,40 @@
    CSS Custom Properties (Design Tokens)
 ────────────────────────────────────────── */
 :root {
-  /* Colors - Company Theme */
-  --clr-bg: #121212;
-  --clr-surface: #1e1e1e;
-  --clr-surface-2: #252525;
-  --clr-surface-3: #2d2d2d;
-  --clr-border: rgba(255, 255, 255, 0.1);
-  --clr-border-hover: rgba(255, 255, 255, 0.2);
+  /* Colors - Company Light Theme */
+  --clr-bg: #f5f5f5;
+  --clr-surface: #ffffff;
+  --clr-surface-2: #f0f0f0;
+  --clr-surface-3: #e5e5e5;
+  --clr-border: rgba(0, 0, 0, 0.1);
+  --clr-border-hover: rgba(0, 0, 0, 0.2);
 
   /* Primary Brand: Yellow */
   --clr-primary: #FFD400;
   --clr-primary-hover: #e6bf00;
-  --clr-primary-glow: rgba(255, 212, 0, 0.25);
+  --clr-primary-glow: rgba(255, 212, 0, 0.3);
 
   /* Secondary Brand: Cool Gray */
-  --clr-accent: #919191;
-  --clr-accent-hover: #a5a5a5;
+  --clr-accent: #6b6b6b;
+  --clr-accent-hover: #555555;
 
-  --clr-success: #22c55e;
-  --clr-success-bg: rgba(34, 197, 94, 0.12);
-  --clr-error: #ef4444;
-  --clr-error-bg: rgba(239, 68, 68, 0.12);
-  --clr-warning: #f59e0b;
-  --clr-warning-bg: rgba(245, 158, 11, 0.12);
+  --clr-success: #16a34a;
+  --clr-success-bg: rgba(22, 163, 74, 0.1);
+  --clr-error: #dc2626;
+  --clr-error-bg: rgba(220, 38, 38, 0.1);
+  --clr-warning: #d97706;
+  --clr-warning-bg: rgba(217, 119, 6, 0.1);
 
-  --clr-text-primary: #f5f5f5;
-  --clr-text-secondary: #a3a3a3;
-  --clr-text-muted: #737373;
-  --clr-text-on-primary: #121212;
+  --clr-text-primary: #1a1a1a;
+  --clr-text-secondary: #555555;
+  --clr-text-muted: #888888;
+  --clr-text-on-primary: #1a1a1a;
   /* Dark text for yellow buttons */
 
   /* Gradients */
-  --gradient-primary: linear-gradient(135deg, #FFD400 0%, #dbb600 100%);
-  --gradient-surface: linear-gradient(135deg, #1e1e1e 0%, #252525 100%);
-  --gradient-hero: linear-gradient(135deg, #1c1c1c 0%, #121212 50%, #1c1c1c 100%);
+  --gradient-primary: linear-gradient(135deg, #FFD400 0%, #e6bf00 100%);
+  --gradient-surface: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+  --gradient-hero: linear-gradient(135deg, #f9f9f9 0%, #f0f0f0 50%, #f9f9f9 100%);
 
   /* Spacing */
   --space-xs: 0.25rem;
@@ -55,9 +55,9 @@
   --radius-round: 50%;
 
   /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
   --shadow-glow: 0 0 24px var(--clr-primary-glow);
 
   /* Typography */
