@@ -76,9 +76,12 @@ export default async function handler(
     let nextLink: string | null = `${graphUrl}/users?$select=id&$top=999`;
 
     while (nextLink) {
-      const listRes = await axios.get(nextLink, { headers });
+      const listRes = await axios.get<{ value?: { id: string }[]; '@odata.nextLink'?: string }>(
+        nextLink,
+        { headers }
+      );
       const users = listRes.data.value || [];
-      userIds.push(...users.map((u: { id: string }) => u.id));
+      userIds.push(...users.map((u) => u.id));
       nextLink = listRes.data['@odata.nextLink'] || null;
     }
 
