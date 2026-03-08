@@ -32,6 +32,17 @@ export default function EmployeeForm({ employee }: EmployeeFormProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(employee.photoUrl || null);
 
+  // Reset form when a different employee is selected
+  useEffect(() => {
+    setFormData(employee);
+    setSuccess(null);
+    setError(null);
+    setShowReview(false);
+    setActiveTab('personal');
+    setSelectedPhoto(null);
+    setPhotoPreview(employee.photoUrl || null);
+  }, [employee.id]);
+
   const handleFieldChange = (field: string, value: string) => {
     setFormData((prev) => {
       // businessPhones is stored as an array in Graph API
