@@ -4,6 +4,7 @@ import { InteractionStatus } from '@azure/msal-browser';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import EmployeeSearch from '../components/EmployeeSearch';
+import BulkUpdate from '../components/BulkUpdate';
 import EmployeeForm from '../components/EmployeeForm';
 import Layout from '../components/Layout';
 import { Employee } from '../lib/types';
@@ -97,6 +98,7 @@ export default function Dashboard() {
         <div className={styles.content}>
           <div className={styles.sidebar}>
             <EmployeeSearch onEmployeeSelected={setSelectedEmployee} />
+            <BulkUpdate />
           </div>
           <div className={styles.main}>
             {selectedEmployee ? (

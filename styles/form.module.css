@@ -298,6 +298,23 @@
   letter-spacing: -0.01em;
 }
 
+.bulkSection {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-xl);
+  border-top: 1px solid var(--clr-border);
+}
+
+.bulkSection select.searchInput {
+  padding-left: var(--space-md);
+}
+
+.bulkHint {
+  font-size: var(--font-size-xs);
+  color: var(--clr-text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
 .searchInputWrapper {
   position: relative;
 }
