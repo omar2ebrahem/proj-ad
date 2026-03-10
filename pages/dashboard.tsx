@@ -100,7 +100,7 @@ export default function Dashboard() {
           </div>
           <div className={styles.main}>
             {selectedEmployee ? (
-              <EmployeeForm employee={selectedEmployee} />
+              <EmployeeForm key={selectedEmployee.id} employee={selectedEmployee} />
             ) : (
               <div className={styles.placeholder}>
                 <i className={styles.placeholderIcon}>👥</i>

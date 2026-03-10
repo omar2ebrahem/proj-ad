@@ -12,6 +12,14 @@ export default function EmployeeSearch({ onEmployeeSelected }: EmployeeSearchPro
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const selectEmployee = (employee: Employee) => {
+    onEmployeeSelected(employee);
+    // Clear search UI to avoid stale selection confusion
+    setQuery('');
+    setResults([]);
+    setError(null);
+  };
+
   const handleSearch = async (searchQuery: string) => {
     setQuery(searchQuery);
     if (searchQuery.length < 2) {
@@ -67,10 +75,10 @@ export default function EmployeeSearch({ onEmployeeSelected }: EmployeeSearchPro
             <div
               key={employee.id}
               className={styles.resultItem}
-              onClick={() => onEmployeeSelected(employee)}
+              onClick={() => selectEmployee(employee)}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && onEmployeeSelected(employee)}
+              onKeyDown={(e) => e.key === 'Enter' && selectEmployee(employee)}
             >
               <div className={styles.resultAvatar}>
                 {employee.photoUrl ? (
