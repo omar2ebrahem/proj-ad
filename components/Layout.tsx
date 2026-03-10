@@ -24,7 +24,6 @@ export default function Layout({ children }: LayoutProps) {
   {/* eslint-disable-next-line @next/next/no-img-element */}
   <img
     src="/pcs_beratungscontor_ag_logo.jpg"
-    alt="PCS Logo"
     style={{ height: '32px', width: 'auto', borderRadius: '4px' }}
   />
   <h1 className={styles.headerTitle}>
