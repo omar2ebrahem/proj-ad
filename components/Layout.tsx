@@ -20,16 +20,17 @@ export default function Layout({ children }: LayoutProps) {
     <div className={styles.layout}>
       <header className={styles.header}>
         <div className={styles.headerContent}>
-          <div className={styles.headerBrand}>
-            <img
-  src="/pcs_beratungscontor_ag_logo.jpg"
-  alt="PCS Logo"
-  style={{ height: '32px', width: 'auto', borderRadius: '4px' }}
-/>
-            <h1 className={styles.headerTitle}>
-              Azure<span>Admin</span>
-            </h1>
-          </div>
+       <div className={styles.headerBrand}>
+  {/* eslint-disable-next-line @next/next/no-img-element */}
+  <img
+    src="/pcs_beratungscontor_ag_logo.jpg"
+    alt="PCS Logo"
+    style={{ height: '32px', width: 'auto', borderRadius: '4px' }}
+  />
+  <h1 className={styles.headerTitle}>
+    Azure<span>Admin</span>
+  </h1>
+</div>
           <div className={styles.userInfo}>
             {user && (
               <>
