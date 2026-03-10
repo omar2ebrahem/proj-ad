@@ -21,7 +21,11 @@ export default function Layout({ children }: LayoutProps) {
       <header className={styles.header}>
         <div className={styles.headerContent}>
           <div className={styles.headerBrand}>
-            <div className={styles.headerLogo}>🏢</div>
+            <img
+  src="/pcs_beratungscontor_ag_logo.jpg"
+  alt="PCS Logo"
+  style={{ height: '32px', width: 'auto', borderRadius: '4px' }}
+/>
             <h1 className={styles.headerTitle}>
               Azure<span>Admin</span>
             </h1>
