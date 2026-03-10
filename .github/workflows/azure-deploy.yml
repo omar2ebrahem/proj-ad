@@ -8,6 +8,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Prevent overlapping deployments (OneDeploy returns 409 otherwise)
+concurrency:
+  group: azure-webapp-${{ vars.AZURE_WEBAPP_NAME }}
+  cancel-in-progress: true
+
 env:
   AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}  # Set in GitHub repo → Settings → Variables
   NODE_VERSION: '22.x'
