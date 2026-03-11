@@ -5,7 +5,6 @@ interface AddressSectionProps {
   formData: Partial<Employee>;
   onChange: (field: string, value: string) => void;
 }
-
 export default function AddressSection({ formData, onChange }: AddressSectionProps) {
   return (
     <div className={styles.section}>
