@@ -8,7 +8,6 @@ interface ReviewModalProps {
   onCancel: () => void;
   loading: boolean;
 }
-
 const FIELD_LABELS: Record<string, string> = {
   givenName: 'Vorname',
   surname: 'Nachname',
