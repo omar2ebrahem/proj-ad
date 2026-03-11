@@ -5,7 +5,6 @@ interface WorkInfoSectionProps {
   formData: Partial<Employee>;
   onChange: (field: string, value: string) => void;
 }
-
 export default function WorkInfoSection({ formData, onChange }: WorkInfoSectionProps) {
   return (
     <div className={styles.section}>
