@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
+import { useMsal } from '@azure/msal-react';
 import { Employee } from '../lib/types';
+import { isInternalUser } from '../lib/utils';
 import styles from '../styles/form.module.css';
 
 type BulkAttr =
@@ -27,7 +29,18 @@ const BULK_ATTRS: { value: BulkAttr; label: string; placeholder: string }[] = [
   { value: 'country', label: 'Land', placeholder: 'z. B. Deutschland' },
 ];
 
+/**
+ * Get the current value for a given attribute from an employee.
+ */
+function getCurrentValue(employee: Employee, attr: BulkAttr): string {
+  if (attr === 'businessPhones') {
+    return employee.businessPhones?.[0] || '';
+  }
+  return (employee as any)[attr] || '';
+}
+
 export default function BulkUpdateSelected() {
+  const { accounts } = useMsal();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Employee[]>([]);
   const [selected, setSelected] = useState<Employee[]>([]);
@@ -40,12 +53,24 @@ export default function BulkUpdateSelected() {
   const [value, setValue] = useState('');
   const [showReview, setShowReview] = useState(false);
 
+  // Debounce & cancellation
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const attrMeta = useMemo(() => BULK_ATTRS.find((a) => a.value === attribute), [attribute]);
 
   const isSelected = (id: string) => selected.some((u) => u.id === id);
 
   const addSelected = (emp: Employee) => {
     if (isSelected(emp.id)) return;
+
+    // Block external users
+    if (!isInternalUser(emp)) {
+      setError('Externe Benutzer können nicht in Massenänderungen aufgenommen werden.');
+      return;
+    }
+
+    setError(null);
     setSelected((prev) => [...prev, emp]);
   };
 
@@ -55,31 +80,60 @@ export default function BulkUpdateSelected() {
 
   const clearSelection = () => setSelected([]);
 
-  const handleSearch = async (searchQuery: string) => {
+  const doSearch = useCallback(async (searchQuery: string) => {
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+
+    if (searchQuery.trim().length < 2) {
+      setResults([]);
+      setLoadingSearch(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setLoadingSearch(true);
+    try {
+      const response = await fetch(
+        `/api/graph/search-users?query=${encodeURIComponent(searchQuery)}`,
+        { signal: controller.signal }
+      );
+      const data = await response.json();
+      if (!controller.signal.aborted) {
+        if (!response.ok) {
+          setError(data.details || data.error || 'Suche fehlgeschlagen.');
+          setResults([]);
+        } else {
+          setResults(data.users || []);
+        }
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        setError('Netzwerkfehler bei der Suche.');
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setLoadingSearch(false);
+      }
+    }
+  }, []);
+
+  const handleSearch = (searchQuery: string) => {
     setQuery(searchQuery);
     setSuccess(null);
     setError(null);
 
     if (searchQuery.trim().length < 2) {
       setResults([]);
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
       return;
     }
 
-    setLoadingSearch(true);
-    try {
-      const response = await fetch(`/api/graph/search-users?query=${encodeURIComponent(searchQuery)}`);
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.details || data.error || 'Suche fehlgeschlagen.');
-        setResults([]);
-      } else {
-        setResults(data.users || []);
-      }
-    } catch {
-      setError('Netzwerkfehler bei der Suche.');
-    } finally {
-      setLoadingSearch(false);
-    }
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      doSearch(searchQuery);
+    }, 300);
   };
 
   const applyBulk = async () => {
@@ -105,6 +159,7 @@ export default function BulkUpdateSelected() {
           updates: {
             [attribute]: attribute === 'businessPhones' ? [trimmed] : trimmed,
           },
+          changedBy: accounts[0]?.username || 'unknown',
         }),
       });
       const data = await res.json();
@@ -125,7 +180,7 @@ export default function BulkUpdateSelected() {
     <div className={`${styles.searchContainer}`} style={{ marginTop: 'var(--space-xl)', paddingTop: 'var(--space-xl)', borderTop: '1px solid var(--clr-border)' }}>
       <h2 className={styles.searchLabel}>Massenänderung (Auswahl)</h2>
       <p className={styles.searchHint} style={{ marginTop: '-6px' }}>
-        Wählen Sie mehrere Mitarbeiter aus und setzen Sie ein gemeinsames Feld.
+        Wählen Sie interne Mitarbeiter aus und setzen Sie ein gemeinsames Feld.
       </p>
 
       <div className={styles.searchInputWrapper}>
@@ -144,33 +199,42 @@ export default function BulkUpdateSelected() {
 
       {results.length > 0 && (
         <div className={styles.searchResults}>
-          {results.map((employee) => (
-            <div
-              key={employee.id}
-              className={styles.resultItem}
-              role="button"
-              tabIndex={0}
-              onClick={() => addSelected(employee)}
-              onKeyDown={(e) => e.key === 'Enter' && addSelected(employee)}
-              style={{ opacity: isSelected(employee.id) ? 0.55 : 1 }}
-            >
-              <div className={styles.resultAvatar}>
-                {employee.photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={employee.photoUrl} alt="Avatar" className={styles.avatarImage} />
-                ) : (
-                  employee.displayName?.charAt(0).toUpperCase() || '?'
-                )}
+          {results.map((employee) => {
+            const isExternal = !isInternalUser(employee);
+            return (
+              <div
+                key={employee.id}
+                className={styles.resultItem}
+                role="button"
+                tabIndex={0}
+                onClick={() => addSelected(employee)}
+                onKeyDown={(e) => e.key === 'Enter' && addSelected(employee)}
+                style={{
+                  opacity: isSelected(employee.id) ? 0.55 : isExternal ? 0.5 : 1,
+                  cursor: isExternal ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <div className={styles.resultAvatar}>
+                  {employee.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={employee.photoUrl} alt="Avatar" className={styles.avatarImage} />
+                  ) : (
+                    employee.displayName?.charAt(0).toUpperCase() || '?'
+                  )}
+                </div>
+                <div className={styles.resultInfo}>
+                  <div className={styles.resultName}>
+                    {employee.displayName}
+                    {isExternal && <span className={styles.externalBadge}>extern</span>}
+                  </div>
+                  <div className={styles.resultEmail}>{employee.userPrincipalName}</div>
+                </div>
+                <div style={{ marginLeft: 'auto', fontWeight: 700, opacity: 0.8 }}>
+                  {isSelected(employee.id) ? '✓' : isExternal ? '🚫' : '+'}
+                </div>
               </div>
-              <div className={styles.resultInfo}>
-                <div className={styles.resultName}>{employee.displayName}</div>
-                <div className={styles.resultEmail}>{employee.userPrincipalName}</div>
-              </div>
-              <div style={{ marginLeft: 'auto', fontWeight: 700, opacity: 0.8 }}>
-                {isSelected(employee.id) ? '✓' : '+'}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -241,6 +305,7 @@ export default function BulkUpdateSelected() {
       {error && <div className={styles.errorMessage} style={{ marginTop: '8px' }}>✕ {error}</div>}
       {success && <div className={styles.successMessage} style={{ marginTop: '8px' }}>{success}</div>}
 
+      {/* Review modal with per-user current/new values */}
       {showReview && (
         <div className={styles.modal}>
           <div className={styles.modalContent}>
@@ -251,15 +316,39 @@ export default function BulkUpdateSelected() {
             <div className={styles.changeDetail} style={{ justifyContent: 'flex-start' }}>
               <span className={styles.new}>{value.trim()}</span>
             </div>
-            <div style={{ marginTop: '10px', fontSize: '0.9rem', opacity: 0.9 }}>
-              Beispiele:
-              <ul style={{ margin: '6px 0 0', paddingLeft: '1.2rem' }}>
-                {selected.slice(0, 5).map((u) => (
-                  <li key={u.id}>{u.displayName} ({u.userPrincipalName})</li>
-                ))}
-                {selected.length > 5 && <li>…</li>}
-              </ul>
+
+            {/* Per-user diff table */}
+            <div style={{ marginTop: '12px', maxHeight: '300px', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--clr-border)' }}>
+                    <th style={{ textAlign: 'left', padding: '6px 4px' }}>Mitarbeiter</th>
+                    <th style={{ textAlign: 'left', padding: '6px 4px' }}>Aktueller Wert</th>
+                    <th style={{ textAlign: 'left', padding: '6px 4px' }}>Neuer Wert</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selected.map((u) => {
+                    const current = getCurrentValue(u, attribute);
+                    return (
+                      <tr key={u.id} style={{ borderBottom: '1px solid var(--clr-border)' }}>
+                        <td style={{ padding: '6px 4px' }}>
+                          <div style={{ fontWeight: 600 }}>{u.displayName}</div>
+                          <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{u.userPrincipalName}</div>
+                        </td>
+                        <td style={{ padding: '6px 4px' }}>
+                          <span className={styles.old}>{current || '—'}</span>
+                        </td>
+                        <td style={{ padding: '6px 4px' }}>
+                          <span className={styles.new}>{value.trim()}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
+
             <div className={styles.modalActions}>
               <button
                 onClick={() => setShowReview(false)}
@@ -282,4 +371,3 @@ export default function BulkUpdateSelected() {
     </div>
   );
 }
-

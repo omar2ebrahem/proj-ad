@@ -11,17 +11,18 @@ import styles from '../styles/form.module.css';
 
 interface EmployeeFormProps {
   employee: Employee;
+  onEmployeeRefreshed?: (employee: Employee) => void;
 }
 
-// Fields Graph API accepts on PATCH /users/{id}
+// Fields Graph API accepts on PATCH /users/{id} — mail excluded (read-only)
 const PATCHABLE_FIELDS = [
-  'givenName', 'surname', 'displayName', 'mail',
+  'givenName', 'surname', 'displayName',
   'mobilePhone', 'officeLocation', 'jobTitle',
   'department', 'companyName', 'streetAddress',
   'city', 'state', 'postalCode', 'country',
 ] as const;
 
-export default function EmployeeForm({ employee }: EmployeeFormProps) {
+export default function EmployeeForm({ employee, onEmployeeRefreshed }: EmployeeFormProps) {
   const { accounts } = useMsal();
   const [formData, setFormData] = useState<Employee & { managerUpn?: string }>(employee);
   const [showReview, setShowReview] = useState(false);
@@ -61,11 +62,11 @@ export default function EmployeeForm({ employee }: EmployeeFormProps) {
     if (!file) return;
 
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      setError('Only JPEG and PNG images are allowed.');
+      setError('Nur JPEG- und PNG-Bilder sind erlaubt.');
       return;
     }
     if (file.size > 4 * 1024 * 1024) {
-      setError('Profile photo must be less than 4MB.');
+      setError('Profilbild muss kleiner als 4 MB sein.');
       return;
     }
 
@@ -73,6 +74,20 @@ export default function EmployeeForm({ employee }: EmployeeFormProps) {
     setSuccess(null);
     setSelectedPhoto(file);
     setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  /**
+   * Re-fetch user data from the server after a successful save.
+   */
+  const refreshEmployee = async (): Promise<Employee | null> => {
+    try {
+      const res = await fetch(`/api/graph/get-user?id=${encodeURIComponent(employee.id)}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.user as Employee;
+    } catch {
+      return null;
+    }
   };
 
   const handleSubmit = async () => {
@@ -105,7 +120,7 @@ export default function EmployeeForm({ employee }: EmployeeFormProps) {
 
         if (!photoResponse.ok) {
           const photoData = await photoResponse.json();
-          throw new Error(photoData.error || 'Failed to upload profile photo.');
+          throw new Error(photoData.error || 'Profilbild konnte nicht hochgeladen werden.');
         }
 
         // Log photo upload audit
@@ -116,8 +131,9 @@ export default function EmployeeForm({ employee }: EmployeeFormProps) {
             changedBy: accounts[0]?.username || 'unknown',
             employeeId: employee.id,
             employeeName: employee.displayName,
-            changes: { photo: { old: 'Previous Photo', new: 'New Photo Uploaded' } },
+            changes: { photo: { old: 'Vorheriges Foto', new: 'Neues Foto hochgeladen' } },
             status: 'success',
+            editType: 'single',
           }),
         }).catch(() => { });
       }
@@ -132,7 +148,7 @@ export default function EmployeeForm({ employee }: EmployeeFormProps) {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess('Employee profile updated successfully!');
+        setSuccess('Mitarbeiterprofil erfolgreich aktualisiert!');
         setShowReview(false);
         setSelectedPhoto(null);
 
@@ -155,15 +171,26 @@ export default function EmployeeForm({ employee }: EmployeeFormProps) {
               employeeName: employee.displayName,
               changes,
               status: 'success',
+              editType: 'single',
             }),
           }).catch(() => { });
         }
+
+        // 3. Re-fetch user data so the form shows server-side values
+        const refreshed = await refreshEmployee();
+        if (refreshed) {
+          setFormData(refreshed);
+          setPhotoPreview(refreshed.photoUrl || null);
+          if (onEmployeeRefreshed) {
+            onEmployeeRefreshed(refreshed);
+          }
+        }
       } else {
-        const errMsg = (data as any).details || (data as any).error || 'Failed to update employee metadata';
+        const errMsg = (data as any).details || (data as any).error || 'Aktualisierung der Mitarbeiterdaten fehlgeschlagen';
         throw new Error(errMsg);
       }
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred while updating the employee profile.');
+      setError(err.message || 'Ein unerwarteter Fehler ist aufgetreten.');
 
       // Log the failure
       await fetch('/api/audit/log', {
@@ -176,6 +203,7 @@ export default function EmployeeForm({ employee }: EmployeeFormProps) {
           changes: {},
           status: 'failed',
           errorMessage: err.message || 'Update failed',
+          editType: 'single',
         }),
       }).catch(() => { });
     } finally {
@@ -184,9 +212,9 @@ export default function EmployeeForm({ employee }: EmployeeFormProps) {
   };
 
   const tabs: Array<{ key: 'personal' | 'work' | 'address'; label: string }> = [
-    { key: 'personal', label: '👤 Personal Info' },
-    { key: 'work', label: '💼 Work Info' },
-    { key: 'address', label: '📍 Address' },
+    { key: 'personal', label: '👤 Persönliche Daten' },
+    { key: 'work', label: '💼 Arbeitsdaten' },
+    { key: 'address', label: '📍 Adresse' },
   ];
 
   return (
@@ -251,7 +279,7 @@ export default function EmployeeForm({ employee }: EmployeeFormProps) {
           onClick={() => setShowReview(true)}
           disabled={loading}
         >
-          {loading ? '⏳ Saving...' : '✔ Überprüfen & Speichern'}
+          {loading ? '⏳ Speichern...' : '✔ Überprüfen & Speichern'}
         </button>
       </div>
 

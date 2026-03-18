@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useMsal, useIsAuthenticated } from '@azure/msal-react';
 import { InteractionStatus } from '@azure/msal-browser';
 import Head from 'next/head';
@@ -58,6 +58,14 @@ export default function Dashboard() {
     }
   };
 
+  /**
+   * Callback from EmployeeForm when user data is refreshed after a save.
+   * Keeps dashboard state in sync with the latest server data.
+   */
+  const handleEmployeeRefreshed = useCallback((refreshed: Employee) => {
+    setSelectedEmployee(refreshed);
+  }, []);
+
   if (loading) {
     return (
       <Layout>
@@ -102,7 +110,11 @@ export default function Dashboard() {
           </div>
           <div className={styles.main}>
             {selectedEmployee ? (
-              <EmployeeForm key={selectedEmployee.id} employee={selectedEmployee} />
+              <EmployeeForm
+                key={selectedEmployee.id}
+                employee={selectedEmployee}
+                onEmployeeRefreshed={handleEmployeeRefreshed}
+              />
             ) : (
               <div className={styles.placeholder}>
                 <i className={styles.placeholderIcon}>👥</i>

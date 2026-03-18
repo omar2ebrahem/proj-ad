@@ -1,22 +1,16 @@
+/**
+ * Audit store — delegates to Azure Table Storage.
+ * This file preserves backward-compatible function signatures.
+ */
 import { AuditLog } from './types';
+import { addAuditEntry, getAuditEntries } from './audit-table-storage';
 
-// In-memory store (suitable for MVP/demo; replace with DB for production)
-const auditLogs: AuditLog[] = [];
-
-export function addAuditLog(entry: Omit<AuditLog, 'id' | 'timestamp'>): AuditLog {
-  const logEntry: AuditLog = {
-    id: `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-    timestamp: new Date(),
-    ...entry,
-  };
-
-  auditLogs.unshift(logEntry); // newest first
-  if (auditLogs.length > 500) auditLogs.pop();
-  return logEntry;
+export async function addAuditLog(
+  entry: Omit<AuditLog, 'id' | 'timestamp'>
+): Promise<AuditLog> {
+  return addAuditEntry(entry);
 }
 
-export function getAuditLogs(employeeId?: string): AuditLog[] {
-  const filtered = employeeId ? auditLogs.filter((l) => l.employeeId === employeeId) : auditLogs;
-  return filtered.slice(0, 50);
+export async function getAuditLogs(employeeId?: string): Promise<AuditLog[]> {
+  return getAuditEntries(employeeId);
 }
-

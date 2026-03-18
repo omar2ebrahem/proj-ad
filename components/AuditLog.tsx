@@ -18,6 +18,7 @@ const FIELD_LABELS: Record<string, string> = {
   department: 'Abteilung',
   companyName: 'Firmenname',
   manager: 'Manager',
+  photo: 'Profilbild',
   streetAddress: 'Straße',
   city: 'Stadt',
   state: 'Bundesland',
@@ -74,8 +75,15 @@ export default function AuditLog({ employeeId, refreshKey }: AuditLogProps) {
                 <span className={styles.logDate}>
                   {new Date(log.timestamp).toLocaleString()}
                 </span>
-                <span className={`${styles.logStatus} ${styles[log.status]}`}>
-                  {log.status === 'success' ? '✓ Erfolgreich' : '✕ Fehlgeschlagen'}
+                <span>
+                  <span className={`${styles.logStatus} ${styles[log.status]}`}>
+                    {log.status === 'success' ? '✓ Erfolgreich' : '✕ Fehlgeschlagen'}
+                  </span>
+                  {log.editType && (
+                    <span className={`${styles.editTypeBadge} ${log.editType === 'bulk' ? styles.editTypeBulk : styles.editTypeSingle}`}>
+                      {log.editType === 'bulk' ? 'Masse' : 'Einzel'}
+                    </span>
+                  )}
                 </span>
               </div>
               <div className={styles.logMeta}>Geändert von: <strong>{log.changedBy}</strong></div>

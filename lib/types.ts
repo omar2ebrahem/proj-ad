@@ -52,6 +52,7 @@ export interface AuditLog {
   changes: Record<string, { old: string; new: string }>;
   status: 'success' | 'failed';
   errorMessage?: string;
+  editType?: 'single' | 'bulk';
 }
 
 export interface AuthUser {

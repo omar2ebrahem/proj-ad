@@ -39,11 +39,13 @@ export default function PersonalInfoSection({ formData, onChange }: PersonalInfo
       </div>
 
       <div className={styles.formGroup}>
-        <label>E-Mail-Adresse</label>
+        <label>E-Mail-Adresse <span className={styles.readOnlyBadge}>(nur Anzeige)</span></label>
         <input
           type="email"
           value={formData.mail || ''}
-          onChange={(e) => onChange('mail', e.target.value)}
+          readOnly
+          disabled
+          className={styles.readOnlyInput}
           placeholder="email@firma.de"
         />
       </div>

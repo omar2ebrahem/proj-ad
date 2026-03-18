@@ -17,7 +17,6 @@ const ALLOWED_GRAPH_FIELDS = new Set([
   'givenName',
   'surname',
   'displayName',
-  'mail',
   'mobilePhone',
   'businessPhones',
   'officeLocation',

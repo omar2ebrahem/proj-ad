@@ -754,3 +754,93 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ══════════════════════════════════════════════
+   READ-ONLY FIELDS
+══════════════════════════════════════════════ */
+.readOnlyInput {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background: var(--clr-surface-2) !important;
+  border-color: var(--clr-border) !important;
+  color: var(--clr-text-muted) !important;
+}
+
+.readOnlyBadge {
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--clr-text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 4px;
+}
+
+/* ══════════════════════════════════════════════
+   EXTERNAL USER BADGE
+══════════════════════════════════════════════ */
+.externalBadge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: rgba(249, 115, 22, 0.15);
+  color: rgb(249, 115, 22);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  padding: 1px 6px;
+  border-radius: 99px;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+/* ══════════════════════════════════════════════
+   FILTER ROW
+══════════════════════════════════════════════ */
+.filterRow {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.filterSelect {
+  width: 100%;
+  padding: 0.45rem var(--space-md);
+  background: var(--clr-surface-2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  color: var(--clr-text-secondary);
+  cursor: pointer;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.filterSelect:focus {
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 3px var(--clr-primary-glow);
+}
+
+/* ══════════════════════════════════════════════
+   EDIT TYPE BADGE (audit log)
+══════════════════════════════════════════════ */
+.editTypeBadge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 99px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-left: 6px;
+}
+
+.editTypeSingle {
+  background: rgba(79, 142, 247, 0.12);
+  color: rgb(79, 142, 247);
+  border: 1px solid rgba(79, 142, 247, 0.25);
+}
+
+.editTypeBulk {
+  background: rgba(168, 85, 247, 0.12);
+  color: rgb(168, 85, 247);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+}

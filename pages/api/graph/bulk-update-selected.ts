@@ -20,6 +20,7 @@ type BulkUpdates = Record<string, unknown>;
 interface BulkUpdateSelectedBody {
   userIds: string[];
   updates: BulkUpdates;
+  changedBy?: string;
 }
 
 interface BulkUpdateSelectedResponse {
@@ -75,7 +76,8 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { userIds, updates } = req.body as BulkUpdateSelectedBody;
+  const { userIds, updates, changedBy } = req.body as BulkUpdateSelectedBody;
+  const actor = changedBy || 'bulk-operation';
 
   if (!Array.isArray(userIds) || userIds.length === 0) {
     return res.status(400).json({ error: 'userIds is required' });
@@ -112,6 +114,34 @@ export default async function handler(
       'Content-Type': 'application/json',
     };
 
+    // Backend check: reject external users
+    // Fetch mail for each user and verify domain
+    const userChecks = await Promise.all(
+      userIds.map(async (userId) => {
+        try {
+          const userRes = await axios.get(`${graphUrl}/users/${userId}`, {
+            headers,
+            params: { $select: 'id,mail,displayName' },
+          });
+          return userRes.data;
+        } catch {
+          return { id: userId, mail: '', displayName: 'Unknown' };
+        }
+      })
+    );
+
+    const externalUsers = userChecks.filter(
+      (u) => !(u.mail || '').toLowerCase().endsWith('@beratungscontor.de')
+    );
+
+    if (externalUsers.length > 0) {
+      const names = externalUsers.map((u) => u.displayName).join(', ');
+      return res.status(400).json({
+        error: 'Externe Benutzer sind bei Massenänderungen nicht erlaubt',
+        details: `Folgende externe Benutzer wurden abgelehnt: ${names}`,
+      });
+    }
+
     let updated = 0;
     const errors: string[] = [];
     const CONCURRENCY = 6;
@@ -120,13 +150,14 @@ export default async function handler(
       const batch = userIds.slice(i, i + CONCURRENCY);
       await Promise.all(
         batch.map(async (userId) => {
+          const userMeta = userChecks.find((u) => u.id === userId);
           try {
             await patchWithRetry(`${graphUrl}/users/${userId}`, payload, headers);
             updated++;
-            addAuditLog({
-              changedBy: 'bulk-operation',
+            await addAuditLog({
+              changedBy: actor,
               employeeId: userId,
-              employeeName: 'Bulk update',
+              employeeName: userMeta?.displayName || 'Unknown',
               changes: Object.fromEntries(
                 Object.entries(payload).map(([field, newVal]) => [
                   field,
@@ -134,17 +165,19 @@ export default async function handler(
                 ])
               ),
               status: 'success',
+              editType: 'bulk',
             });
           } catch (err: any) {
             const msg = err?.response?.data?.error?.message || err?.message || 'Unknown error';
             errors.push(`${userId}: ${msg}`);
-            addAuditLog({
-              changedBy: 'bulk-operation',
+            await addAuditLog({
+              changedBy: actor,
               employeeId: userId,
-              employeeName: 'Bulk update',
+              employeeName: userMeta?.displayName || 'Unknown',
               changes: {},
               status: 'failed',
               errorMessage: msg,
+              editType: 'bulk',
             });
           }
         })
@@ -163,4 +196,3 @@ export default async function handler(
     return res.status(500).json({ error: 'Bulk update selected failed', details });
   }
 }
-

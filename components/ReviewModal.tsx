@@ -8,14 +8,14 @@ interface ReviewModalProps {
   onCancel: () => void;
   loading: boolean;
 }
+
 const FIELD_LABELS: Record<string, string> = {
   givenName: 'Vorname',
   surname: 'Nachname',
   displayName: 'Anzeigename',
-  mail: 'Email',
   mobilePhone: 'Mobiltelefon',
   businessPhones: 'Bürotelefon',
-  officeLocation: 'Office Location',
+  officeLocation: 'Bürostandort',
   jobTitle: 'Position',
   department: 'Abteilung',
   companyName: 'Firmenname',
@@ -27,11 +27,22 @@ const FIELD_LABELS: Record<string, string> = {
   country: 'Land',
 };
 
+// Removed 'mail' — it's read-only and should not appear as a change
 const REVIEW_FIELDS = [
-  'givenName', 'surname', 'displayName', 'mail', 'mobilePhone',
+  'givenName', 'surname', 'displayName', 'mobilePhone', 'businessPhones',
   'officeLocation', 'jobTitle', 'department', 'companyName', 'managerUpn',
   'streetAddress', 'city', 'state', 'postalCode', 'country',
 ];
+
+/**
+ * Normalize a value to a plain string for comparison.
+ * Handles null, undefined, arrays (businessPhones), and whitespace.
+ */
+function normalize(val: unknown): string {
+  if (val === null || val === undefined) return '';
+  if (Array.isArray(val)) return (val[0] ?? '').toString().trim();
+  return String(val).trim();
+}
 
 export default function ReviewModal({
   original,
@@ -47,14 +58,12 @@ export default function ReviewModal({
     let newVal: string;
 
     if (field === 'managerUpn') {
-      oldVal = original.manager?.userPrincipalName || '';
-      newVal = updated.managerUpn || '';
+      oldVal = normalize(original.manager?.userPrincipalName);
+      newVal = normalize(updated.managerUpn);
     } else {
       const key = field as keyof Employee;
-      const o = original[key];
-      const n = (updated as any)[key];
-      oldVal = Array.isArray(o) ? o[0] || '' : String(o || '');
-      newVal = Array.isArray(n) ? n[0] || '' : String(n || '');
+      oldVal = normalize(original[key]);
+      newVal = normalize((updated as any)[key]);
     }
 
     if (oldVal !== newVal) {

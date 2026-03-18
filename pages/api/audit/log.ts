@@ -17,19 +17,20 @@ export default async function handler(
   res: NextApiResponse<LogResponse | ErrorResponse>
 ) {
   if (req.method === 'POST') {
-    const { changedBy, employeeId, employeeName, changes, status, errorMessage } = req.body;
+    const { changedBy, employeeId, employeeName, changes, status, errorMessage, editType } = req.body;
 
     if (!changedBy || !employeeId || !status) {
       return res.status(400).json({ error: 'changedBy, employeeId and status are required' });
     }
 
-    const logEntry = addAuditLog({
+    const logEntry = await addAuditLog({
       changedBy,
       employeeId,
       employeeName,
       changes,
       status,
       errorMessage,
+      editType: editType || 'single',
     });
 
     return res.status(200).json({ success: true, logId: logEntry.id });
@@ -37,9 +38,10 @@ export default async function handler(
 
   if (req.method === 'GET') {
     const { employeeId } = req.query;
+    const logs = await getAuditLogs(typeof employeeId === 'string' ? employeeId : undefined);
     return res.status(200).json({
       success: true,
-      logs: getAuditLogs(typeof employeeId === 'string' ? employeeId : undefined),
+      logs,
     });
   }
 
