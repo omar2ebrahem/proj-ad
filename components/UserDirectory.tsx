@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useMsal } from '@azure/msal-react';
 import { Employee } from '../lib/types';
 import dirStyles from '../styles/directory.module.css';
 
@@ -7,7 +8,6 @@ interface ColDef {
   key: string;
   label: string;
   editable: boolean;
-  width?: string;
 }
 
 const COLUMNS: ColDef[] = [
@@ -22,7 +22,10 @@ const COLUMNS: ColDef[] = [
   { key: 'customAttribute2', label: 'CustomAttribute2', editable: true },
 ];
 
-/* filterable columns (auto-populate from data) */
+const COLUMN_LABELS: Record<string, string> = {};
+COLUMNS.forEach((c) => { COLUMN_LABELS[c.key] = c.label; });
+
+/* filterable columns */
 const FILTER_KEYS = ['department', 'companyName', 'officeLocation', 'jobTitle', 'city'] as const;
 
 const FILTER_LABELS: Record<string, string> = {
@@ -40,14 +43,25 @@ function getCellValue(user: Employee, key: string): string {
   return (user as any)[key] || '';
 }
 
+/* ─── pending change type ─────────────────────────── */
+interface PendingChange {
+  userId: string;
+  key: string;
+  userName: string;
+  fieldLabel: string;
+  oldValue: string;
+  newValue: string;
+}
+
 /* ─── props ───────────────────────────────────────── */
 interface UserDirectoryProps {
   onEmployeeSelected: (employee: Employee) => void;
-  refreshKey?: number; // increment to force re-fetch
+  refreshKey?: number;
 }
 
 /* ═══════════════════════════════════════════════════ */
 export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDirectoryProps) {
+  const { accounts } = useMsal();
   const [users, setUsers] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +73,7 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
   const [editCell, setEditCell] = useState<{ userId: string; key: string } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   /* ── fetch users ─────────────────────────────────── */
@@ -77,21 +92,16 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
     }
   }, []);
 
-  /* initial load */
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  /* refresh when refreshKey changes */
   useEffect(() => {
-    if (refreshKey !== undefined && refreshKey > 0) {
-      fetchUsers();
-    }
+    if (refreshKey !== undefined && refreshKey > 0) fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
 
   /* ── progressive photo loading ──────────────────── */
   useEffect(() => {
     if (users.length === 0) return;
-
     let cancelled = false;
     const BATCH = 5;
 
@@ -128,7 +138,7 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
     return () => { cancelled = true; };
   }, [users]);
 
-  /* ── filter options (unique values from data) ───── */
+  /* ── filter options ─────────────────────────────── */
   const filterOptions = useMemo(() => {
     const opts: Record<string, string[]> = {};
     for (const fk of FILTER_KEYS) {
@@ -146,7 +156,6 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
   const filtered = useMemo(() => {
     let result = users;
 
-    // text search
     if (search) {
       const q = search.toLowerCase();
       result = result.filter((u) =>
@@ -163,7 +172,6 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
       );
     }
 
-    // dropdown filters
     for (const [key, val] of Object.entries(filters)) {
       if (val) {
         result = result.filter((u) => (u as any)[key] === val);
@@ -189,7 +197,8 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
     setEditValue('');
   };
 
-  const saveEdit = async () => {
+  /** Called on Enter/blur — shows confirmation popup instead of saving directly */
+  const requestSave = () => {
     if (!editCell) return;
     const { userId, key } = editCell;
     const user = users.find((u) => u.id === userId);
@@ -198,9 +207,24 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
     const oldValue = getCellValue(user, key);
     if (editValue === oldValue) { cancelEdit(); return; }
 
+    // show confirmation popup
+    setPendingChange({
+      userId,
+      key,
+      userName: user.displayName || user.mail || user.id,
+      fieldLabel: COLUMN_LABELS[key] || key,
+      oldValue: oldValue || '—',
+      newValue: editValue || '—',
+    });
+  };
+
+  /** Actually save after user confirms */
+  const confirmSave = async () => {
+    if (!pendingChange) return;
+    const { userId, key, oldValue, newValue, userName, fieldLabel } = pendingChange;
+
     setSaving(true);
     try {
-      // build the update payload
       let updates: Record<string, any> = {};
       if (key === 'phone') {
         updates = { businessPhones: [editValue] };
@@ -243,7 +267,27 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
         })
       );
 
+      // log to audit trail
+      fetch('/api/audit/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          changedBy: accounts[0]?.username || 'unknown',
+          employeeId: userId,
+          employeeName: userName,
+          changes: {
+            [fieldLabel]: {
+              old: oldValue === '—' ? '' : oldValue,
+              new: newValue === '—' ? '' : newValue,
+            },
+          },
+          status: 'success',
+          editType: 'single',
+        }),
+      }).catch(() => { /* audit log failure is non-blocking */ });
+
       cancelEdit();
+      setPendingChange(null);
     } catch (err: any) {
       alert(err.message || 'Speichern fehlgeschlagen');
     } finally {
@@ -251,9 +295,21 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
     }
   };
 
+  const cancelConfirm = () => {
+    setPendingChange(null);
+    // keep edit cell open so user can adjust
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') saveEdit();
+    if (e.key === 'Enter') { e.preventDefault(); requestSave(); }
     if (e.key === 'Escape') cancelEdit();
+  };
+
+  const handleBlur = () => {
+    // small delay so clicks on confirm button register first
+    setTimeout(() => {
+      if (!pendingChange) requestSave();
+    }, 150);
   };
 
   /* ── clear all filters ──────────────────────────── */
@@ -265,6 +321,42 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
   /* ── render ──────────────────────────────────────── */
   return (
     <div className={dirStyles.directorySection}>
+      {/* confirmation popup */}
+      {pendingChange && (
+        <div className={dirStyles.confirmOverlay}>
+          <div className={dirStyles.confirmBox}>
+            <h3 className={dirStyles.confirmTitle}>Änderung bestätigen</h3>
+            <p className={dirStyles.confirmUser}>{pendingChange.userName}</p>
+
+            <div className={dirStyles.confirmDetail}>
+              <div className={dirStyles.confirmField}>{pendingChange.fieldLabel}</div>
+              <div className={dirStyles.confirmDiff}>
+                <span className={dirStyles.confirmOld}>{pendingChange.oldValue}</span>
+                <span className={dirStyles.confirmArrow}>→</span>
+                <span className={dirStyles.confirmNew}>{pendingChange.newValue}</span>
+              </div>
+            </div>
+
+            <div className={dirStyles.confirmActions}>
+              <button
+                className={dirStyles.confirmCancelBtn}
+                onClick={cancelConfirm}
+                disabled={saving}
+              >
+                Abbrechen
+              </button>
+              <button
+                className={dirStyles.confirmSaveBtn}
+                onClick={confirmSave}
+                disabled={saving}
+              >
+                {saving ? '⏳ Speichern…' : '✔ Bestätigen & Speichern'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* toolbar */}
       <div className={dirStyles.toolbar}>
         <div className={dirStyles.searchBox}>
@@ -322,7 +414,6 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
               <tbody>
                 {filtered.map((user) => (
                   <tr key={user.id} className={dirStyles.row}>
-                    {/* avatar */}
                     <td>
                       <div
                         className={dirStyles.miniAvatar}
@@ -337,7 +428,6 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
                       </div>
                     </td>
 
-                    {/* data cells */}
                     {COLUMNS.map((col) => {
                       const isEditing = editCell?.userId === user.id && editCell?.key === col.key;
                       const value = getCellValue(user, col.key);
@@ -351,7 +441,7 @@ export default function UserDirectory({ onEmployeeSelected, refreshKey }: UserDi
                               value={editValue}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={handleKeyDown}
-                              onBlur={saveEdit}
+                              onBlur={handleBlur}
                               disabled={saving}
                             />
                           </td>
